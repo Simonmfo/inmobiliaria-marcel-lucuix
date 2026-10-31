@@ -1,0 +1,6 @@
+{
+  "name": "Inmobiliaria Marcel Lucuix",
+  "description": "Plataforma de catálogo, tasaciones y gestión de propiedades para Inmobiliaria Marcel Lucuix (Paysandú, Uruguay).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

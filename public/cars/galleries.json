@@ -1,0 +1,44 @@
+{
+  "ford-ranger": [
+    "/cars/ford-ranger-1.jpg",
+    "/cars/ford-ranger-2.jpg",
+    "/cars/ford-ranger-3.jpg",
+    "/cars/ford-ranger-4.jpg",
+    "/cars/ford-ranger-5.jpg"
+  ],
+  "mercedes-glc": [
+    "/cars/mercedes-glc-1.jpg",
+    "/cars/mercedes-glc-2.jpg",
+    "/cars/mercedes-glc-3.jpg",
+    "/cars/mercedes-glc-4.jpg",
+    "/cars/mercedes-glc-5.jpg"
+  ],
+  "ford-maverick": [
+    "/cars/ford-maverick-1.jpg",
+    "/cars/ford-maverick-2.jpg",
+    "/cars/ford-maverick-3.jpg",
+    "/cars/ford-maverick-4.jpg",
+    "/cars/ford-maverick-5.jpg"
+  ],
+  "suzuki-swift": [
+    "/cars/suzuki-swift-1.jpg",
+    "/cars/suzuki-swift-2.jpg",
+    "/cars/suzuki-swift-3.jpg",
+    "/cars/suzuki-swift-4.jpg",
+    "/cars/suzuki-swift-5.jpg"
+  ],
+  "suzuki-fronx": [
+    "/cars/suzuki-fronx-1.jpg",
+    "/cars/suzuki-fronx-2.jpg",
+    "/cars/suzuki-fronx-3.jpg",
+    "/cars/suzuki-fronx-4.jpg",
+    "/cars/suzuki-fronx-5.jpg"
+  ],
+  "chevrolet-onix": [
+    "/cars/chevrolet-onix-1.jpg",
+    "/cars/chevrolet-onix-2.jpg",
+    "/cars/chevrolet-onix-3.jpg",
+    "/cars/chevrolet-onix-4.jpg",
+    "/cars/chevrolet-onix-5.jpg"
+  ]
+}
