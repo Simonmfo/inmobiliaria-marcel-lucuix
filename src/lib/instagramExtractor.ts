@@ -198,6 +198,39 @@ export function parseCaption(text: string): ParsedPropertyInfo {
   return result;
 }
 
+function getBestImageUrl(mediaNode: any): string {
+  if (!mediaNode) return '';
+  const candidates = mediaNode.image_versions2?.candidates;
+  if (Array.isArray(candidates) && candidates.length > 0) {
+    const unscaled = candidates.find(
+      (c: any) => c?.url && !/_[sp]\d+x\d+/i.test(c.url)
+    );
+    if (unscaled?.url) return cleanUrl(unscaled.url);
+
+    let bestUrl = candidates[0]?.url || '';
+    let bestScore = 0;
+    for (const c of candidates) {
+      if (!c?.url) continue;
+      const w = Number(c.width) || 0;
+      const h = Number(c.height) || 0;
+      let score = w * h;
+      if (!score) {
+        const sizeMatch = c.url.match(/_[sp](\d+)x(\d+)/i);
+        if (sizeMatch) {
+          score = parseInt(sizeMatch[1], 10) * parseInt(sizeMatch[2], 10);
+        }
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestUrl = c.url;
+      }
+    }
+    if (bestUrl) return cleanUrl(bestUrl);
+  }
+  const fallback = mediaNode.display_uri || mediaNode.display_url || '';
+  return fallback ? cleanUrl(fallback) : '';
+}
+
 function fetchWithGooglebot(shortcode: string): Promise<{ slides: string[]; caption: string } | null> {
   return new Promise((resolve) => {
     const url = `https://www.instagram.com/p/${shortcode}/`;
@@ -239,9 +272,10 @@ function fetchWithGooglebot(shortcode: string): Promise<{ slides: string[]; capt
 
           let slides: string[] = [];
           if (Array.isArray(inner.carousel_media) && inner.carousel_media.length > 0) {
-            slides = inner.carousel_media.map((m: any) => m.display_uri || m.display_url).filter(Boolean).map(cleanUrl);
-          } else if (inner.display_uri || inner.display_url) {
-            slides = [cleanUrl(inner.display_uri || inner.display_url)];
+            slides = inner.carousel_media.map(getBestImageUrl).filter(Boolean);
+          } else {
+            const single = getBestImageUrl(inner);
+            if (single) slides = [single];
           }
 
           if (slides.length > 0) {
@@ -276,12 +310,27 @@ function fetchWithEmbed(shortcode: string): Promise<{ slides: string[]; caption:
           clean = clean.replace(/<div[^>]*class=["'][^"']*HoverCard[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, '');
           clean = clean.replace(/<div[^>]*HoverCard[^>]*>[\s\S]*?<\/div>/gi, '');
 
-          const embMatch = clean.match(/class=["']EmbeddedMediaImage["'][^>]+src=["']([^"']+)["']/i);
+          const imgTagMatch = clean.match(/<img[^>]*class=["'][^"']*EmbeddedMediaImage[^"']*["'][^>]*>/i);
           const slides: string[] = [];
-          if (embMatch) {
-            const u = cleanUrl(embMatch[1]);
-            if (!u.includes('t51.2885-19') && !u.includes('s150x150') && !u.includes('100x100')) {
-              slides.push(u);
+          if (imgTagMatch) {
+            const imgTag = imgTagMatch[0];
+            const srcsetMatch = imgTag.match(/srcset=["']([^"']+)["']/i);
+            let chosenUrl = '';
+            if (srcsetMatch) {
+              const parts = srcsetMatch[1]
+                .split(',')
+                .map(s => s.trim().split(/\s+/)[0])
+                .filter(Boolean);
+              if (parts.length > 0) {
+                chosenUrl = cleanUrl(parts[parts.length - 1]);
+              }
+            }
+            if (!chosenUrl) {
+              const srcMatch = imgTag.match(/src=["']([^"']+)["']/i);
+              if (srcMatch) chosenUrl = cleanUrl(srcMatch[1]);
+            }
+            if (chosenUrl && !chosenUrl.includes('t51.2885-19') && !chosenUrl.includes('s150x150') && !chosenUrl.includes('100x100')) {
+              slides.push(chosenUrl);
             }
           }
 

@@ -167,6 +167,41 @@ function parseCaption(text) {
   return result;
 }
 
+function getBestImageUrl(mediaNode) {
+  if (!mediaNode) return '';
+  const candidates = mediaNode.image_versions2?.candidates;
+  if (Array.isArray(candidates) && candidates.length > 0) {
+    // 1. Prefer candidate without _sNxN / _pNxN downscaling parameter (native full resolution, e.g. 1540x1027 or 1440x1800)
+    const unscaled = candidates.find(
+      c => c?.url && !/_[sp]\d+x\d+/i.test(c.url)
+    );
+    if (unscaled?.url) return cleanUrl(unscaled.url);
+
+    // 2. Otherwise pick the candidate with the largest explicit width*height or _sNxN size
+    let bestUrl = candidates[0]?.url || '';
+    let bestScore = 0;
+    for (const c of candidates) {
+      if (!c?.url) continue;
+      const w = Number(c.width) || 0;
+      const h = Number(c.height) || 0;
+      let score = w * h;
+      if (!score) {
+        const sizeMatch = c.url.match(/_[sp](\d+)x(\d+)/i);
+        if (sizeMatch) {
+          score = parseInt(sizeMatch[1], 10) * parseInt(sizeMatch[2], 10);
+        }
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestUrl = c.url;
+      }
+    }
+    if (bestUrl) return cleanUrl(bestUrl);
+  }
+  const fallback = mediaNode.display_uri || mediaNode.display_url || '';
+  return fallback ? cleanUrl(fallback) : '';
+}
+
 function fetchWithGooglebot(shortcode) {
   return new Promise((resolve) => {
     const url = `https://www.instagram.com/p/${shortcode}/`;
@@ -208,9 +243,10 @@ function fetchWithGooglebot(shortcode) {
 
           let slides = [];
           if (Array.isArray(inner.carousel_media) && inner.carousel_media.length > 0) {
-            slides = inner.carousel_media.map(m => m.display_uri || m.display_url).filter(Boolean).map(cleanUrl);
-          } else if (inner.display_uri || inner.display_url) {
-            slides = [cleanUrl(inner.display_uri || inner.display_url)];
+            slides = inner.carousel_media.map(getBestImageUrl).filter(Boolean);
+          } else {
+            const single = getBestImageUrl(inner);
+            if (single) slides = [single];
           }
 
           if (slides.length > 0) {
@@ -245,13 +281,28 @@ function fetchWithEmbed(shortcode) {
           clean = clean.replace(/<div[^>]*class=["'][^"']*HoverCard[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, '');
           clean = clean.replace(/<div[^>]*HoverCard[^>]*>[\s\S]*?<\/div>/gi, '');
 
-          // Strictly extract the post's own EmbeddedMediaImage
-          const embMatch = clean.match(/class=["']EmbeddedMediaImage["'][^>]+src=["']([^"']+)["']/i);
+          // Prefer highest resolution URL from srcset (1080w) on EmbeddedMediaImage before falling back to src
+          const imgTagMatch = clean.match(/<img[^>]*class=["'][^"']*EmbeddedMediaImage[^"']*["'][^>]*>/i);
           const slides = [];
-          if (embMatch) {
-            const u = cleanUrl(embMatch[1]);
-            if (!u.includes('t51.2885-19') && !u.includes('s150x150') && !u.includes('100x100')) {
-              slides.push(u);
+          if (imgTagMatch) {
+            const imgTag = imgTagMatch[0];
+            const srcsetMatch = imgTag.match(/srcset=["']([^"']+)["']/i);
+            let chosenUrl = '';
+            if (srcsetMatch) {
+              const parts = srcsetMatch[1]
+                .split(',')
+                .map(s => s.trim().split(/\s+/)[0])
+                .filter(Boolean);
+              if (parts.length > 0) {
+                chosenUrl = cleanUrl(parts[parts.length - 1]);
+              }
+            }
+            if (!chosenUrl) {
+              const srcMatch = imgTag.match(/src=["']([^"']+)["']/i);
+              if (srcMatch) chosenUrl = cleanUrl(srcMatch[1]);
+            }
+            if (chosenUrl && !chosenUrl.includes('t51.2885-19') && !chosenUrl.includes('s150x150') && !chosenUrl.includes('100x100')) {
+              slides.push(chosenUrl);
             }
           }
 
@@ -356,3 +407,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ success: false, error: err?.message || 'Error del servidor' });
   }
 }
+
