@@ -98,10 +98,21 @@ export default function App() {
           .order("created_at", { ascending: false });
 
         if (!vError && dbVehicles && dbVehicles.length > 0) {
-          setVehicles(dbVehicles as Vehicle[]);
-          if (targetVehicleId) {
-            const match = dbVehicles.find((v: any) => v.id === targetVehicleId);
-            if (match) setSelectedVehicle(match as Vehicle);
+          const validProperties = (dbVehicles as Vehicle[]).filter(
+            (v) => v.propertyType || (v.image && v.image.startsWith("/properties/"))
+          );
+          if (validProperties.length > 0) {
+            const merged = validProperties.map((dbItem) => {
+              const localMatch = INITIAL_VEHICLES.find((init) => init.id === dbItem.id);
+              return localMatch
+                ? { ...dbItem, image: localMatch.image, gallery: localMatch.gallery }
+                : dbItem;
+            });
+            setVehicles(merged);
+            if (targetVehicleId) {
+              const match = merged.find((v) => v.id === targetVehicleId);
+              if (match) setSelectedVehicle(match);
+            }
           }
         }
 

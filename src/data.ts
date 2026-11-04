@@ -32,7 +32,9 @@ export const INITIAL_VEHICLES: Property[] = [
     image: '/properties/cerrito-colon.jpg',
     gallery: [
       '/properties/cerrito-colon.jpg',
-      '/properties/casa-residencia.jpg'
+      '/properties/exterior-patio.jpg',
+      '/properties/interior-living.jpg',
+      '/properties/interior-cocina.jpg'
     ],
     // Legacy compatibility fields
     brand: 'Casa',
@@ -82,7 +84,9 @@ export const INITIAL_VEHICLES: Property[] = [
     image: '/properties/larranaga-33orientales.jpg',
     gallery: [
       '/properties/larranaga-33orientales.jpg',
-      '/properties/apartamento-terraza.jpg'
+      '/properties/interior-cocina.jpg',
+      '/properties/interior-dormitorio.jpg',
+      '/properties/interior-bano.jpg'
     ],
     brand: 'Apartamento',
     model: 'Apto a Estrenar 2 Dorm. c/Cochera',
@@ -131,7 +135,9 @@ export const INITIAL_VEHICLES: Property[] = [
     image: '/properties/ituzaingo-verocay.jpg',
     gallery: [
       '/properties/ituzaingo-verocay.jpg',
-      '/properties/apartamento-terraza.jpg'
+      '/properties/interior-bano.jpg',
+      '/properties/interior-dormitorio.jpg',
+      '/properties/interior-cocina.jpg'
     ],
     brand: 'Apartamento',
     model: 'Apto Semi Amoblado c/Jacuzzi',
@@ -180,7 +186,9 @@ export const INITIAL_VEHICLES: Property[] = [
     image: '/properties/florida-solano-garcia.jpg',
     gallery: [
       '/properties/florida-solano-garcia.jpg',
-      '/properties/casa-residencia.jpg'
+      '/properties/interior-living.jpg',
+      '/properties/interior-dormitorio.jpg',
+      '/properties/exterior-patio.jpg'
     ],
     brand: 'Casa',
     model: 'Casa 3 Dormitorios Florida y Solano García',
@@ -230,8 +238,9 @@ export const INITIAL_VEHICLES: Property[] = [
     image: '/properties/casa-residencia.jpg',
     gallery: [
       '/properties/casa-residencia.jpg',
-      '/properties/apartamento-terraza.jpg',
-      '/properties/chacra-campo.jpg'
+      '/properties/residencia-piscina.jpg',
+      '/properties/interior-living.jpg',
+      '/properties/interior-cocina.jpg'
     ],
     brand: 'Casa',
     model: 'Residencia en Barrio Jardín con Piscina',
@@ -280,7 +289,9 @@ export const INITIAL_VEHICLES: Property[] = [
     image: '/properties/apartamento-terraza.jpg',
     gallery: [
       '/properties/apartamento-terraza.jpg',
-      '/properties/casa-residencia.jpg'
+      '/properties/larranaga-33orientales.jpg',
+      '/properties/interior-cocina.jpg',
+      '/properties/interior-dormitorio.jpg'
     ],
     brand: 'Apartamento',
     model: 'Penthouse Centro con Terraza y Parrillero',
@@ -329,7 +340,9 @@ export const INITIAL_VEHICLES: Property[] = [
     image: '/properties/chacra-campo.jpg',
     gallery: [
       '/properties/chacra-campo.jpg',
-      '/properties/casa-residencia.jpg'
+      '/properties/chacra-casco.jpg',
+      '/properties/exterior-patio.jpg',
+      '/properties/interior-living.jpg'
     ],
     brand: 'Chacra / Campo',
     model: 'Chacra Turística 5 Hás sobre Ruta',
