@@ -109,7 +109,7 @@ export default function AddVehicleView({ onAddVehicle, setView }: AddVehicleView
       .map(f => f.trim())
       .filter(Boolean);
 
-    const mainImg = formData.image || (galleryUrls.length > 0 ? galleryUrls[0] : '/properties/casa-residencia.jpg');
+    const mainImg = formData.image || (galleryUrls.length > 0 ? galleryUrls[0] : '/properties/stock-residencia-jardin.jpg');
 
     const newProperty: Property = {
       id: `prop-${Date.now()}`,
@@ -443,7 +443,7 @@ export default function AddVehicleView({ onAddVehicle, setView }: AddVehicleView
             </label>
             <input
               type="text"
-              placeholder="/properties/casa-residencia.jpg"
+              placeholder="/properties/stock-residencia-jardin.jpg"
               value={formData.image}
               onChange={(e) => setFormData({ ...formData, image: e.target.value })}
               className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
@@ -456,7 +456,7 @@ export default function AddVehicleView({ onAddVehicle, setView }: AddVehicleView
             </label>
             <textarea
               rows={3}
-              placeholder="/properties/apartamento-terraza.jpg&#10;/properties/chacra-campo.jpg"
+              placeholder="/properties/stock-penthouse-centro.jpg&#10;/properties/stock-chacra-ruta3.jpg"
               value={formData.galleryInput}
               onChange={(e) => setFormData({ ...formData, galleryInput: e.target.value })}
               className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs sm:text-sm text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"

@@ -29,9 +29,9 @@ export const INITIAL_VEHICLES: Property[] = [
       'Patio con churrasquera techada',
       'Garantías: ANDA, Porto Seguro, Contaduría (CGN), FIDECIU'
     ],
-    image: '/properties/cerrito-colon.jpg',
+    image: '/properties/stock-casa-cerrito.jpg',
     gallery: [
-      '/properties/cerrito-colon.jpg',
+      '/properties/stock-casa-cerrito.jpg',
       '/properties/exterior-patio.jpg',
       '/properties/interior-living.jpg',
       '/properties/interior-cocina.jpg'
@@ -81,9 +81,9 @@ export const INITIAL_VEHICLES: Property[] = [
       'Patio exclusivo y cochera propia',
       'Garantías: ANDA, Porto Seguro, CGN, FIDECIU'
     ],
-    image: '/properties/larranaga-33orientales.jpg',
+    image: '/properties/stock-apto-larranaga.jpg',
     gallery: [
-      '/properties/larranaga-33orientales.jpg',
+      '/properties/stock-apto-larranaga.jpg',
       '/properties/interior-cocina.jpg',
       '/properties/interior-dormitorio.jpg',
       '/properties/interior-bano.jpg'
@@ -132,9 +132,9 @@ export const INITIAL_VEHICLES: Property[] = [
       'Baño completo equipado con jacuzzi',
       'Patio compartido y entorno tranquilo'
     ],
-    image: '/properties/ituzaingo-verocay.jpg',
+    image: '/properties/stock-apto-ituzaingo.jpg',
     gallery: [
-      '/properties/ituzaingo-verocay.jpg',
+      '/properties/stock-apto-ituzaingo.jpg',
       '/properties/interior-bano.jpg',
       '/properties/interior-dormitorio.jpg',
       '/properties/interior-cocina.jpg'
@@ -183,9 +183,9 @@ export const INITIAL_VEHICLES: Property[] = [
       'Patio cerrado',
       'Garantías: ANDA, Porto, Contaduría CGN, FIDECIU'
     ],
-    image: '/properties/florida-solano-garcia.jpg',
+    image: '/properties/stock-casa-florida.jpg',
     gallery: [
-      '/properties/florida-solano-garcia.jpg',
+      '/properties/stock-casa-florida.jpg',
       '/properties/interior-living.jpg',
       '/properties/interior-dormitorio.jpg',
       '/properties/exterior-patio.jpg'
@@ -235,9 +235,9 @@ export const INITIAL_VEHICLES: Property[] = [
       'Cochera techada para 2 vehículos con portón automatizado',
       'Acepta préstamo hipotecario (BHU, Santander, BROU, Itaú)'
     ],
-    image: '/properties/casa-residencia.jpg',
+    image: '/properties/stock-residencia-jardin.jpg',
     gallery: [
-      '/properties/casa-residencia.jpg',
+      '/properties/stock-residencia-jardin.jpg',
       '/properties/residencia-piscina.jpg',
       '/properties/interior-living.jpg',
       '/properties/interior-cocina.jpg'
@@ -286,10 +286,10 @@ export const INITIAL_VEHICLES: Property[] = [
       'Bajos gastos comunes mensuales',
       'Acepta Préstamo Hipotecario Bancario'
     ],
-    image: '/properties/apartamento-terraza.jpg',
+    image: '/properties/stock-penthouse-centro.jpg',
     gallery: [
-      '/properties/apartamento-terraza.jpg',
-      '/properties/larranaga-33orientales.jpg',
+      '/properties/stock-penthouse-centro.jpg',
+      '/properties/stock-apto-larranaga.jpg',
       '/properties/interior-cocina.jpg',
       '/properties/interior-dormitorio.jpg'
     ],
@@ -337,9 +337,9 @@ export const INITIAL_VEHICLES: Property[] = [
       'Pozo semisurgente con excelente caudal de agua',
       'Luz trifásica y conectividad de fibra'
     ],
-    image: '/properties/chacra-campo.jpg',
+    image: '/properties/stock-chacra-ruta3.jpg',
     gallery: [
-      '/properties/chacra-campo.jpg',
+      '/properties/stock-chacra-ruta3.jpg',
       '/properties/chacra-casco.jpg',
       '/properties/exterior-patio.jpg',
       '/properties/interior-living.jpg'
