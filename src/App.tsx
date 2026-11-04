@@ -13,8 +13,30 @@ import { INITIAL_VEHICLES, DEFAULT_INQUIRIES, UPCOMING_SERVICES } from "./data";
 import { supabase } from "./lib/supabase";
 import { parsePath, buildPath, ViewType } from "./lib/router";
 
+function normalizeVehicleFromDb(v: any): Vehicle {
+  const bedroomsMatch = v.engine?.match(/(\d+)\s*Dorm/i);
+  const bathroomsMatch = v.engine?.match(/(\d+)\s*Ba[ñn]/i);
+  return {
+    ...v,
+    title: v.title || v.model || `${v.brand || 'Propiedad'} en Paysandú`,
+    operation: v.operation || (v.transmission === 'Alquiler' ? 'Alquiler' : 'Venta'),
+    propertyType: v.propertyType || v.brand || 'Casa',
+    location: v.location || v.color || v.drive || 'Paysandú',
+    city: v.city || 'Paysandú',
+    address: v.address || v.acceleration || `${v.location || v.color || 'Centro'}, Paysandú`,
+    currency: v.currency || (v.fuelType === 'UYU' ? 'UYU' : 'USD'),
+    bedrooms: typeof v.bedrooms === 'number' ? v.bedrooms : (bedroomsMatch ? parseInt(bedroomsMatch[1], 10) : 2),
+    bathrooms: typeof v.bathrooms === 'number' ? v.bathrooms : (bathroomsMatch ? parseInt(bathroomsMatch[1], 10) : 1),
+    totalArea: typeof v.totalArea === 'number' ? v.totalArea : (typeof v.mileage === 'number' ? v.mileage : 0),
+    coveredArea: typeof v.coveredArea === 'number' ? v.coveredArea : (typeof v.mileage === 'number' ? v.mileage : 0),
+    garages: typeof v.garages === 'number' ? v.garages : 0,
+    code: v.code || v.stockId || 'ML-001'
+  };
+}
+
 function syncWithInitialImages(items: Vehicle[]): Vehicle[] {
-  return items.map(item => {
+  return items.map( raw => {
+    const item = normalizeVehicleFromDb(raw);
     const localMatch = INITIAL_VEHICLES.find(init => init.id === item.id);
     if (localMatch) {
       return {
@@ -153,16 +175,11 @@ export default function App() {
           .order("created_at", { ascending: false });
 
         if (!vError && dbVehicles && dbVehicles.length > 0) {
-          const validProperties = (dbVehicles as Vehicle[]).filter(
-            (v) => v.propertyType || (v.image && v.image.startsWith("/properties/"))
-          );
-          if (validProperties.length > 0) {
-            const merged = syncWithInitialImages(validProperties);
-            setVehicles(merged);
-            if (targetVehicleId) {
-              const match = merged.find((v) => v.id === targetVehicleId);
-              if (match) setSelectedVehicle(match);
-            }
+          const merged = syncWithInitialImages(dbVehicles as Vehicle[]);
+          setVehicles(merged);
+          if (targetVehicleId) {
+            const match = merged.find((v) => v.id === targetVehicleId);
+            if (match) setSelectedVehicle(match);
           }
         }
 
@@ -208,7 +225,39 @@ export default function App() {
     });
     setSelectedVehicle(newVehicle);
     try {
-      await supabase.from("vehicles").insert([newVehicle]);
+      const { error } = await supabase.from("vehicles").insert([newVehicle]);
+      if (error) {
+        console.warn("Full insert failed, retrying with base vehicle columns:", error.message);
+        const basePayload = {
+          id: newVehicle.id,
+          brand: newVehicle.brand || newVehicle.propertyType || "Casa",
+          model: newVehicle.model || newVehicle.title || "Inmueble",
+          year: newVehicle.year || 2025,
+          price: newVehicle.price,
+          category: newVehicle.category || `${newVehicle.operation} · ${newVehicle.propertyType}`,
+          engine: newVehicle.engine || `${newVehicle.bedrooms} Dorms. · ${newVehicle.bathrooms} Baños`,
+          power: newVehicle.power || `${newVehicle.totalArea} m²`,
+          acceleration: newVehicle.acceleration || newVehicle.address || `${newVehicle.location}, Paysandú`,
+          drive: newVehicle.drive || newVehicle.location || "Paysandú",
+          transmission: newVehicle.transmission || newVehicle.operation || "Venta",
+          transmissionDetail: newVehicle.transmissionDetail || `${newVehicle.operation} · ${newVehicle.code}`,
+          fuelType: newVehicle.fuelType || newVehicle.currency || "USD",
+          mileage: newVehicle.mileage ?? newVehicle.totalArea ?? 0,
+          color: newVehicle.color || newVehicle.location || "Paysandú",
+          status: newVehicle.status || "Active",
+          daysOnLot: newVehicle.daysOnLot ?? 0,
+          stockId: newVehicle.stockId || newVehicle.code || "ML-001",
+          vin: newVehicle.vin || `ML-${newVehicle.code || "001"}`,
+          description: newVehicle.description,
+          features: newVehicle.features,
+          image: newVehicle.image,
+          gallery: newVehicle.gallery
+        };
+        const { error: retryErr } = await supabase.from("vehicles").insert([basePayload]);
+        if (retryErr) {
+          console.error("Supabase insert error:", retryErr);
+        }
+      }
     } catch (e) {
       console.warn("Supabase insert not available, saved locally:", e);
     }
