@@ -18,8 +18,8 @@ function instagramApiPlugin(): Plugin {
             return;
           }
           try {
-            const publicCarsDir = path.resolve(__dirname, 'public/cars');
-            const result = await fetchInstagramCarousel(igUrl, publicCarsDir);
+            const publicPropsDir = path.resolve(__dirname, 'public/properties');
+            const result = await fetchInstagramCarousel(igUrl, publicPropsDir);
             res.statusCode = 200;
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify(result));

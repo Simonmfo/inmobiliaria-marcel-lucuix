@@ -2,14 +2,24 @@ import https from 'https';
 import fs from 'fs';
 import path from 'path';
 
-export interface ParsedVehicleInfo {
+export interface ParsedPropertyInfo {
+  title: string;
+  operation?: 'Venta' | 'Alquiler';
+  propertyType?: 'Casa' | 'Apartamento' | 'Terreno' | 'Local Comercial' | 'Chacra / Campo' | 'Oficina';
+  currency?: 'USD' | 'UYU';
+  price?: number;
+  bedrooms?: number;
+  bathrooms?: number;
+  totalArea?: number;
+  garages?: number;
+  location?: string;
+  features: string[];
+  // Legacy compatibility fields
   brand: string;
   model: string;
-  year: number | null;
-  price: number | null;
+  year?: number;
   mileage: number | null;
   engine: string;
-  features: string[];
 }
 
 export interface InstagramCarouselResult {
@@ -17,95 +27,168 @@ export interface InstagramCarouselResult {
   shortcode?: string;
   images: string[];
   caption: string;
-  parsed: ParsedVehicleInfo;
+  parsed: ParsedPropertyInfo;
   error?: string;
 }
 
-function cleanUrl(u: string): string {
-  return u.replace(/[,;"'\\)]+$/, '').trim();
+function cleanUrl(raw: string): string {
+  return raw
+    .replaceAll('&amp;', '&')
+    .replaceAll('\\u0026', '&')
+    .replaceAll('\\/', '/')
+    .replace(/^"+|"+$/g, '')
+    .trim();
 }
 
-export function parseCaption(text: string): ParsedVehicleInfo {
-  const result: ParsedVehicleInfo = {
+export function parseCaption(text: string): ParsedPropertyInfo {
+  const result: ParsedPropertyInfo = {
+    title: '',
+    operation: undefined,
+    propertyType: undefined,
+    currency: undefined,
+    price: undefined,
+    bedrooms: undefined,
+    bathrooms: undefined,
+    totalArea: undefined,
+    garages: undefined,
+    location: undefined,
+    features: [],
     brand: '',
     model: '',
-    year: null,
-    price: null,
+    year: 2025,
     mileage: null,
-    engine: '',
-    features: []
+    engine: ''
   };
 
   if (!text) return result;
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
-  // Year: Año 2022, 2023, etc.
-  const yearMatch = text.match(/A[ñn]o\s*([12][0-9]{3})/i);
-  if (yearMatch) result.year = parseInt(yearMatch[1], 10);
+  const cleanText = text
+    .replace(/\\n/g, '\n')
+    .replace(/\\"/g, '"')
+    .replace(/\\/g, '');
 
-  // Mileage: 79.400km, 12000 km, 0km
-  const kmMatch = text.match(/([0-9]+(?:[\.,][0-9]+)*)\s*(?:km|kms|kilometros)/i);
-  if (kmMatch) {
-    const rawKm = kmMatch[1].replace(/[\.,]/g, '');
-    result.mileage = parseInt(rawKm, 10);
+  const lines = cleanText.split('\n').map(l => l.trim()).filter(Boolean);
+  const lower = cleanText.toLowerCase();
+
+  // Operation detection (Alquiler vs Venta)
+  if (lower.includes('alquila') || lower.includes('alquiler') || lower.includes('arriendo')) {
+    result.operation = 'Alquiler';
+  } else if (lower.includes('vende') || lower.includes('venta') || lower.includes('oportunidad de compra')) {
+    result.operation = 'Venta';
   }
 
-  // Price: U$$ 11.990, US$ 12.000, USD 14.500, U$S 10.000, $ 10.000
-  const priceMatch = text.match(/[uU][sS$]{1,3}\s*([0-9\.,]+)/);
-  if (priceMatch) {
-    const rawPrice = priceMatch[1].replace(/[\.,]/g, '');
-    result.price = parseInt(rawPrice, 10);
+  // Property Type detection
+  if (lower.includes('apartamento') || lower.includes('apto') || lower.includes('monoambiente') || lower.includes('penthouse')) {
+    result.propertyType = 'Apartamento';
+  } else if (lower.includes('chacra') || lower.includes('campo') || lower.includes('estancia') || lower.includes('hectárea') || lower.includes('hectarea')) {
+    result.propertyType = 'Chacra / Campo';
+  } else if (lower.includes('terreno') || lower.includes('solar') || lower.includes('lote')) {
+    result.propertyType = 'Terreno';
+  } else if (lower.includes('local') || lower.includes('comercial') || lower.includes('galpón') || lower.includes('galpon')) {
+    result.propertyType = 'Local Comercial';
+  } else if (lower.includes('oficina') || lower.includes('consultorio')) {
+    result.propertyType = 'Oficina';
+  } else if (lower.includes('casa') || lower.includes('residencia') || lower.includes('propiedad') || lower.includes('duplex') || lower.includes('dúplex')) {
+    result.propertyType = 'Casa';
   }
 
-  // Engine: Motor 1.4 Fire, Motor 1.0, etc.
-  const engineMatch = text.match(/Motor\s+([^\n\r]+)/i);
-  if (engineMatch) {
-    result.engine = engineMatch[1].replace(/[\.]$/, '').trim();
+  // Price & Currency detection
+  const usdMatch = cleanText.match(/(?:U\$S|US\$|USD|U\$\$)\s*([0-9]+(?:[\.,][0-9]{3})*)/i);
+  const uyuMatch = cleanText.match(/(?:\$\s*|UYU\s*)([0-9]+(?:[\.,][0-9]{3})+)/i);
+
+  if (usdMatch) {
+    result.currency = 'USD';
+    result.price = parseInt(usdMatch[1].replace(/[\.,]/g, ''), 10);
+    if (!result.operation) result.operation = 'Venta';
+  } else if (uyuMatch) {
+    result.currency = 'UYU';
+    result.price = parseInt(uyuMatch[1].replace(/[\.,]/g, ''), 10);
+    if (!result.operation) result.operation = 'Alquiler';
   }
 
-  // Known car brands
-  const knownBrands = [
-    'Fiat', 'Chevrolet', 'Volkswagen', 'VW', 'Renault', 'Suzuki', 
-    'Toyota', 'Ford', 'Peugeot', 'Citroen', 'Citroën', 'Nissan', 
-    'Hyundai', 'Jeep', 'Honda', 'BYD', 'BMW', 'Audi', 'Mercedes-Benz'
-  ];
-  for (const b of knownBrands) {
-    if (text.toLowerCase().includes(b.toLowerCase())) {
-      result.brand = b === 'VW' ? 'Volkswagen' : b;
+  // Bedrooms detection
+  const bedMatch = cleanText.match(/([0-9]+)\s*(?:dormitorios?|dorms?\.?|habitaciones?)/i);
+  if (bedMatch) {
+    result.bedrooms = parseInt(bedMatch[1], 10);
+  } else if (lower.includes('monoambiente')) {
+    result.bedrooms = 1;
+  }
+
+  // Bathrooms detection
+  const bathMatch = cleanText.match(/([0-9]+)\s*(?:ba[ñn]os?)/i);
+  if (bathMatch) {
+    result.bathrooms = parseInt(bathMatch[1], 10);
+  }
+
+  // Area (m2 / m² / hectáreas)
+  const areaMatch = cleanText.match(/([0-9]+(?:[\.,][0-9]+)*)\s*(?:m2|m²|metros\s*cuadrados)/i);
+  if (areaMatch) {
+    result.totalArea = parseInt(areaMatch[1].replace(/[\.,]/g, ''), 10);
+    result.mileage = result.totalArea;
+  } else {
+    const haMatch = cleanText.match(/([0-9]+)\s*(?:hect[áa]reas?|has?\b)/i);
+    if (haMatch) {
+      result.totalArea = parseInt(haMatch[1], 10) * 10000;
+      result.mileage = result.totalArea;
+    }
+  }
+
+  // Garage / Cochera detection
+  if (lower.includes('cochera') || lower.includes('garaje') || lower.includes('garage') || lower.includes('entrada para auto')) {
+    const garMatch = cleanText.match(/([0-9]+)\s*(?:cocheras?|garajes?|veh[íi]culos?|autos?)/i);
+    result.garages = garMatch ? parseInt(garMatch[1], 10) : 1;
+  }
+
+  // Location detection from lines with📍, "Ubicación", "Zona", or street intersections (" y ")
+  for (const line of lines) {
+    const cleanLine = line.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
+    const locMatch = cleanLine.match(/(?:ubicaci[óo]n|zona|direcci[óo]n)\s*[:\-]?\s*(.+)/i);
+    if (locMatch && locMatch[1].length > 3) {
+      result.location = locMatch[1].replace(/,?\s*paysand[úu].*/i, '').trim();
+      break;
+    }
+    if (line.includes('📍') && cleanLine.length > 3) {
+      result.location = cleanLine.replace(/,?\s*paysand[úu].*/i, '').trim();
       break;
     }
   }
 
-  // Model candidate from line containing brand
+  // Build title from first descriptive line or detected attributes
   for (const line of lines) {
-    if (result.brand && line.toLowerCase().includes(result.brand.toLowerCase())) {
-      const modelCandidate = line
-        .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
-        .replace(new RegExp(result.brand, 'i'), '')
-        .replace(/[!¡]/g, '')
-        .trim();
-      if (modelCandidate.length > 1) {
-        result.model = modelCandidate;
-        break;
-      }
+    const stripped = line
+      .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
+      .replace(/^[¡!\-\s•*]+|[¡!\-\s•*]+$/g, '')
+      .trim();
+    if (stripped.length >= 6 && stripped.length <= 90 && !stripped.startsWith('#')) {
+      result.title = stripped;
+      break;
     }
   }
 
-  // Features from lines with bullets or checkmarks
+  if (!result.title && result.propertyType) {
+    const opLabel = result.operation ? ` en ${result.operation}` : '';
+    const locLabel = result.location ? ` - ${result.location}` : '';
+    result.title = `${result.propertyType}${opLabel}${locLabel}`;
+  }
+
+  result.brand = result.propertyType || 'Propiedad';
+  result.model = result.title || 'Inmueble en Paysandú';
+  result.engine = `${result.bedrooms || 1} Dorms. · ${result.bathrooms || 1} Baños`;
+
+  // Extract bulleted features
   for (const line of lines) {
-    if (line.includes('✅') || line.startsWith('-') || line.startsWith('•')) {
+    if (line.includes('✅') || line.includes('✔') || line.includes('🔹') || line.startsWith('-') || line.startsWith('•')) {
       const feat = line
         .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
-        .replace(/^[\-•\*\s]+/, '')
+        .replace(/^[\-•\*\s✔]+/, '')
         .replace(/[\.]$/, '')
         .trim();
       if (
-        feat && 
-        !feat.toLowerCase().includes('año') && 
-        !feat.toLowerCase().includes('km') && 
-        !feat.toLowerCase().includes('motor') &&
-        !feat.toLowerCase().includes('florida') &&
-        !feat.toLowerCase().includes('tel')
+        feat &&
+        feat.length > 3 &&
+        !feat.toLowerCase().includes('098 689') &&
+        !feat.toLowerCase().includes('4722 7016') &&
+        !feat.toLowerCase().includes('33 orientales 950')
       ) {
         result.features.push(feat);
       }
@@ -115,143 +198,213 @@ export function parseCaption(text: string): ParsedVehicleInfo {
   return result;
 }
 
-export function fetchInstagramCarousel(urlOrCode: string, saveDir?: string): Promise<InstagramCarouselResult> {
+function fetchWithGooglebot(shortcode: string): Promise<{ slides: string[]; caption: string } | null> {
   return new Promise((resolve) => {
-    try {
-      const match = urlOrCode.match(/\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/);
-      const shortcode = match ? match[1] : urlOrCode.replace(/^\/+|\/+$/g, '').trim();
-      
-      if (!shortcode) {
-        return resolve({ 
-          success: false, 
-          images: [], 
-          caption: '', 
-          parsed: parseCaption(''),
-          error: 'No se pudo detectar el código de publicación de Instagram.' 
-        });
+    const url = `https://www.instagram.com/p/${shortcode}/`;
+    https.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8'
       }
+    }, res => {
+      let html = '';
+      res.on('data', chunk => html += chunk);
+      res.on('end', () => {
+        try {
+          const codeIdx = html.indexOf(`"code":"${shortcode}"`);
+          if (codeIdx === -1) return resolve(null);
 
-      const embedUrl = `https://www.instagram.com/p/${shortcode}/embed/`;
+          const start = html.lastIndexOf('{"__typename":"XIGPolaris', codeIdx);
+          if (start === -1) return resolve(null);
 
-      https.get(embedUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-          'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8'
-        }
-      }, (res) => {
-        let data = '';
-        res.on('data', chunk => data += chunk);
-        res.on('end', async () => {
-          try {
-            const clean = data.replaceAll('\\/', '/').replaceAll('&amp;', '&').replaceAll('\\u0026', '&');
-            const regex = /https:\/\/[^\s"'<>]+\.(?:fbcdn\.net|cdninstagram\.com)\/v\/t39\.30808-6\/[^\s"'<>]+/g;
-            const matches = (clean.match(regex) || []).map(cleanUrl);
-
-            const photoMap = new Map<string, string>();
-            for (const u of matches) {
-              const fidMatch = u.match(/\/([0-9]+_[0-9]+_[0-9]+_n\.(?:jpg|webp))/);
-              if (fidMatch) {
-                const fid = fidMatch[1];
-                if (!photoMap.has(fid) || u.length > (photoMap.get(fid)?.length || 0)) {
-                  photoMap.set(fid, u);
-                }
+          let depth = 0;
+          let end = -1;
+          for (let i = start; i < html.length; i++) {
+            if (html[i] === '{') depth++;
+            else if (html[i] === '}') {
+              depth--;
+              if (depth === 0) {
+                end = i + 1;
+                break;
               }
             }
-
-            // Extract caption
-            let caption = '';
-            const key = String.raw`\"text\":\"`;
-            const start = data.indexOf(key);
-            if (start !== -1) {
-              const sub = data.slice(start + key.length);
-              const end = sub.indexOf(String.raw`\"`);
-              if (end !== -1) {
-                const rawText = sub.slice(0, end);
-                caption = rawText
-                  .replace(/\\n/g, '\n')
-                  .replace(/\\u([0-9a-fA-F]{4})/g, (_, c) => String.fromCharCode(parseInt(c, 16)));
-              }
-            }
-
-            const rawUrls = Array.from(photoMap.values());
-            const savedPaths: string[] = [];
-
-            // If save directory exists, save images locally so they never expire
-            if (saveDir && fs.existsSync(saveDir)) {
-              let idx = 1;
-              for (const u of rawUrls) {
-                const fname = `ig_${shortcode}_${idx}.jpg`;
-                const fpath = path.join(saveDir, fname);
-                try {
-                  await new Promise<void>((resFile) => {
-                    https.get(u, {
-                      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)' }
-                    }, (imgRes) => {
-                      if (imgRes.statusCode === 200) {
-                        const out = fs.createWriteStream(fpath);
-                        imgRes.pipe(out);
-                        out.on('finish', () => {
-                          savedPaths.push(`/cars/${fname}`);
-                          resFile();
-                        });
-                        out.on('error', () => {
-                          savedPaths.push(u);
-                          resFile();
-                        });
-                      } else {
-                        savedPaths.push(u);
-                        resFile();
-                      }
-                    }).on('error', () => {
-                      savedPaths.push(u);
-                      resFile();
-                    });
-                  });
-                } catch {
-                  savedPaths.push(u);
-                }
-                idx++;
-              }
-            }
-
-            const finalImages = savedPaths.length > 0 ? savedPaths : rawUrls;
-            const parsedData = parseCaption(caption);
-
-            resolve({
-              success: finalImages.length > 0,
-              shortcode,
-              images: finalImages,
-              caption,
-              parsed: parsedData,
-              error: finalImages.length === 0 ? 'No se encontraron imágenes en el enlace proporcionado.' : undefined
-            });
-          } catch (err: any) {
-            resolve({ 
-              success: false, 
-              images: [], 
-              caption: '', 
-              parsed: parseCaption(''),
-              error: err?.message || 'Error procesando la respuesta de Instagram' 
-            });
           }
-        });
-      }).on('error', (err: any) => {
-        resolve({ 
-          success: false, 
-          images: [], 
-          caption: '', 
-          parsed: parseCaption(''),
-          error: err?.message || 'Error al conectar con Instagram' 
-        });
+
+          if (end === -1) return resolve(null);
+
+          const jsonStr = html.slice(start, end);
+          const targetObj = JSON.parse(jsonStr);
+          const inner = targetObj.if_not_gated_logged_out || targetObj;
+          const caption = inner.caption?.text || '';
+
+          let slides: string[] = [];
+          if (Array.isArray(inner.carousel_media) && inner.carousel_media.length > 0) {
+            slides = inner.carousel_media.map((m: any) => m.display_uri || m.display_url).filter(Boolean).map(cleanUrl);
+          } else if (inner.display_uri || inner.display_url) {
+            slides = [cleanUrl(inner.display_uri || inner.display_url)];
+          }
+
+          if (slides.length > 0) {
+            return resolve({ slides, caption });
+          }
+          resolve(null);
+        } catch {
+          resolve(null);
+        }
       });
-    } catch (e: any) {
-      resolve({ 
-        success: false, 
-        images: [], 
-        caption: '', 
-        parsed: parseCaption(''),
-        error: e?.message || 'Error inesperado' 
-      });
-    }
+    }).on('error', () => resolve(null));
   });
+}
+
+function fetchWithEmbed(shortcode: string): Promise<{ slides: string[]; caption: string } | null> {
+  return new Promise((resolve) => {
+    const embedUrl = `https://www.instagram.com/p/${shortcode}/embed/captioned/`;
+
+    https.get(embedUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1',
+        'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8'
+      }
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          let clean = data.replaceAll('\\/', '/').replaceAll('&amp;', '&').replaceAll('\\u0026', '&');
+
+          // Strip out all HoverCard / recommendations so unrelated posts are never included
+          clean = clean.replace(/<div[^>]*class=["'][^"']*HoverCard[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, '');
+          clean = clean.replace(/<div[^>]*HoverCard[^>]*>[\s\S]*?<\/div>/gi, '');
+
+          const embMatch = clean.match(/class=["']EmbeddedMediaImage["'][^>]+src=["']([^"']+)["']/i);
+          const slides: string[] = [];
+          if (embMatch) {
+            const u = cleanUrl(embMatch[1]);
+            if (!u.includes('t51.2885-19') && !u.includes('s150x150') && !u.includes('100x100')) {
+              slides.push(u);
+            }
+          }
+
+          let caption = '';
+          const key = String.raw`\"text\":\"`;
+          const start = data.indexOf(key);
+          if (start !== -1) {
+            const sub = data.slice(start + key.length);
+            const end = sub.indexOf(String.raw`\"`);
+            if (end !== -1) {
+              const rawText = sub.slice(0, end);
+              caption = rawText
+                .replace(/\\n/g, '\n')
+                .replace(/\\u([0-9a-fA-F]{4})/g, (_, c) => String.fromCharCode(parseInt(c, 16)));
+            }
+          }
+
+          resolve({ slides, caption });
+        } catch {
+          resolve({ slides: [], caption: '' });
+        }
+      });
+    }).on('error', () => resolve({ slides: [], caption: '' }));
+  });
+}
+
+export async function fetchInstagramCarousel(urlOrCode: string, saveDir?: string): Promise<InstagramCarouselResult> {
+  try {
+    const match = urlOrCode.match(/\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/);
+    const shortcode = match ? match[1] : urlOrCode.replace(/^\/+|\/+$/g, '').trim();
+
+    if (!shortcode) {
+      return {
+        success: false,
+        images: [],
+        caption: '',
+        parsed: parseCaption(''),
+        error: 'No se pudo detectar el código de publicación de Instagram.'
+      };
+    }
+
+    let slides: string[] = [];
+    let caption = '';
+
+    // 1. Try Googlebot crawler first to extract all carousel slides
+    const botResult = await fetchWithGooglebot(shortcode);
+    if (botResult && botResult.slides && botResult.slides.length > 0) {
+      slides = botResult.slides;
+      caption = botResult.caption;
+    } else {
+      // 2. Fallback to embed
+      const embedResult = await fetchWithEmbed(shortcode);
+      if (embedResult && embedResult.slides && embedResult.slides.length > 0) {
+        slides = embedResult.slides;
+        caption = embedResult.caption;
+      }
+    }
+
+    if (slides.length === 0) {
+      return {
+        success: false,
+        images: [],
+        caption: '',
+        parsed: parseCaption(''),
+        error: 'No se encontraron imágenes en el enlace proporcionado.'
+      };
+    }
+
+    const savedPaths: string[] = [];
+
+    if (saveDir && fs.existsSync(saveDir)) {
+      let idx = 1;
+      for (const u of slides) {
+        const fname = `ig_${shortcode}_${idx}.jpg`;
+        const fpath = path.join(saveDir, fname);
+        try {
+          await new Promise<void>((resFile) => {
+            https.get(u, {
+              headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)' }
+            }, (imgRes) => {
+              if (imgRes.statusCode === 200) {
+                const out = fs.createWriteStream(fpath);
+                imgRes.pipe(out);
+                out.on('finish', () => {
+                  savedPaths.push(`/properties/${fname}`);
+                  resFile();
+                });
+                out.on('error', () => {
+                  savedPaths.push(u);
+                  resFile();
+                });
+              } else {
+                savedPaths.push(u);
+                resFile();
+              }
+            }).on('error', () => {
+              savedPaths.push(u);
+              resFile();
+            });
+          });
+        } catch {
+          savedPaths.push(u);
+        }
+        idx++;
+      }
+    }
+
+    const finalImages = savedPaths.length > 0 ? savedPaths : slides;
+
+    return {
+      success: true,
+      shortcode,
+      images: finalImages,
+      caption,
+      parsed: parseCaption(caption)
+    };
+  } catch (e: any) {
+    return {
+      success: false,
+      images: [],
+      caption: '',
+      parsed: parseCaption(''),
+      error: e?.message || 'Error inesperado'
+    };
+  }
 }

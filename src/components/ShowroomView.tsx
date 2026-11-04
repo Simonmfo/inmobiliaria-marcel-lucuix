@@ -436,12 +436,14 @@ export default function ShowroomView({
                   className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all group flex flex-col justify-between"
                 >
                   <div>
-                    {/* Card Image Container */}
+                    {/* Card Image Container with Badges and Diagonal Ribbons */}
                     <div className="relative aspect-[16/10] bg-slate-100 overflow-hidden">
                       <img
                         src={p.image}
                         alt={p.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${
+                          p.status === "Sold" ? "grayscale-[20%]" : ""
+                        }`}
                       />
                       
                       {/* Operation Badge */}
@@ -452,9 +454,29 @@ export default function ShowroomView({
                       </span>
 
                       {/* Property Type Badge */}
-                      <span className="absolute top-2.5 right-2.5 bg-white/95 backdrop-blur-sm text-slate-800 text-[10px] font-bold px-2 py-0.5 rounded-full z-10 shadow-sm border border-slate-200">
-                        {p.propertyType || p.brand}
-                      </span>
+                      {p.status === "Active" && (
+                        <span className="absolute top-2.5 right-2.5 bg-white/95 backdrop-blur-sm text-slate-800 text-[10px] font-bold px-2 py-0.5 rounded-full z-10 shadow-sm border border-slate-200">
+                          {p.propertyType || p.brand}
+                        </span>
+                      )}
+
+                      {/* Diagonal Ribbon for Sold / Rented */}
+                      {p.status === "Sold" && (
+                        <div className="absolute top-0 right-0 w-28 h-28 overflow-hidden z-20 pointer-events-none">
+                          <div className="absolute top-[20px] -right-[36px] w-[140px] transform rotate-45 bg-red-600 text-white font-black text-[10px] tracking-widest uppercase text-center py-1 shadow-md border-y border-white/30">
+                            {isRental ? "ALQUILADO" : "VENDIDO"}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Diagonal Ribbon for Reserved */}
+                      {p.status === "Reserved" && (
+                        <div className="absolute top-0 right-0 w-28 h-28 overflow-hidden z-20 pointer-events-none">
+                          <div className="absolute top-[20px] -right-[36px] w-[140px] transform rotate-45 bg-amber-500 text-slate-950 font-black text-[10px] tracking-widest uppercase text-center py-1 shadow-md border-y border-white/40">
+                            RESERVADO
+                          </div>
+                        </div>
+                      )}
 
                       {/* Code Pill */}
                       {p.code && (
@@ -507,9 +529,19 @@ export default function ShowroomView({
                             {formattedPrice}
                           </span>
                         </div>
-                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                          {isRental ? "Garantías" : "Acepta Banco"}
-                        </span>
+                        {p.status === "Sold" ? (
+                          <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200">
+                            {isRental ? "Alquilado" : "Vendido"}
+                          </span>
+                        ) : p.status === "Reserved" ? (
+                          <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                            Reservado
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                            {isRental ? "Garantías" : "Acepta Banco"}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -721,7 +753,138 @@ export default function ShowroomView({
         </div>
       </section>
 
-      {/* 6. MODAL DE DETALLE DE PROPIEDAD */}
+      {/* 6. SECCIÓN DE CONTACTO Y UBICACIÓN EN PAYSANDÚ */}
+      <section className="bg-slate-900 text-white py-16 px-4 sm:px-6 md:px-12">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10">
+          
+          <div className="lg:col-span-5 space-y-6">
+            <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest block">
+              Atención Personalizada
+            </span>
+            <h3 className="font-display text-3xl font-extrabold text-white">
+              Te esperamos en nuestra oficina en Paysandú
+            </h3>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Acercate a 33 Orientales 950 para coordinar visitas a propiedades, solicitar una tasación oficial o administrar tus alquileres con total respaldo.
+            </p>
+
+            <div className="space-y-4 pt-2 text-sm text-slate-300">
+              <div className="flex items-start gap-3">
+                <MapPin className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-white block font-semibold">Dirección:</strong>
+                  <span>33 Orientales 950, Ciudad de Paysandú, Uruguay</span>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <Phone className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-white block font-semibold">Teléfonos:</strong>
+                  <span>Fijo: 4722 7016 · Celular / WhatsApp: 098 689 246</span>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <Clock className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-white block font-semibold">Horario de Atención:</strong>
+                  <span>Lun a Jue de 8:30 a 12:00 y 14:00 a 18:00 hs | Vie de 8:30 a 17:00 hs</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-7 bg-white rounded-2xl p-6 md:p-8 text-slate-800 shadow-xl">
+            <h4 className="font-display font-bold text-lg text-slate-900 mb-1">
+              Envianos tu consulta o solicitá tasación
+            </h4>
+            <p className="text-xs text-slate-500 mb-6">
+              Completá el formulario y el equipo de Inmobiliaria Marcel Lucuix se comunicará a la brevedad.
+            </p>
+
+            {formSubmitted ? (
+              <div className="text-center py-8 space-y-3">
+                <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto border border-emerald-200">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <h5 className="font-bold text-base text-slate-900">¡Mensaje Enviado con Éxito!</h5>
+                <p className="text-xs text-slate-600 max-w-sm mx-auto">
+                  Gracias por comunicarte con Inmobiliaria Marcel Lucuix. Te responderemos a la brevedad.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setFormSubmitted(false)}
+                  className="text-xs font-bold text-brand-600 hover:underline pt-2 cursor-pointer"
+                >
+                  Enviar otra consulta
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitInquiry} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">Nombre y Apellido *</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={(e) => setFormData(p => ({ ...p, name: e.target.value }))}
+                      placeholder="Ej. Juan Pérez"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">Teléfono / WhatsApp *</label>
+                    <input
+                      type="tel"
+                      required
+                      value={formData.phone}
+                      onChange={(e) => setFormData(p => ({ ...p, phone: e.target.value }))}
+                      placeholder="Ej. 099 123 456"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Correo Electrónico *</label>
+                  <input
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) => setFormData(p => ({ ...p, email: e.target.value }))}
+                    placeholder="ejemplo@correo.com"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Mensaje o Inmueble de Interés</label>
+                  <textarea
+                    rows={3}
+                    value={formData.message}
+                    onChange={(e) => setFormData(p => ({ ...p, message: e.target.value }))}
+                    placeholder="Contanos qué tipo de propiedad estás buscando (alquiler o compra), o si deseás tasar o publicar un inmueble..."
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none font-sans"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm py-3 px-4 rounded-xl shadow transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Send className="w-4 h-4" />
+                  Enviar Consulta
+                </button>
+              </form>
+            )}
+          </div>
+
+        </div>
+      </section>
+
+      {/* 7. MODAL DE DETALLE DE PROPIEDAD */}
       <AnimatePresence>
         {activeDetailVehicle && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
@@ -770,14 +933,62 @@ export default function ShowroomView({
               {/* Modal Scrollable Content */}
               <div className="p-4 sm:p-6 overflow-y-auto space-y-6">
                 
+                {/* Status Notice Banner if Sold/Rented or Reserved */}
+                {activeDetailVehicle.status === "Sold" && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl font-bold text-xs flex items-center gap-2.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse shrink-0" />
+                    <div>
+                      <span className="font-extrabold uppercase tracking-wide block text-xs">
+                        {activeDetailVehicle.operation === "Alquiler" ? "Propiedad Alquilada" : "Propiedad Vendida"}
+                      </span>
+                      <span className="text-xs font-medium text-slate-600">
+                        Este inmueble ya fue comercializado. ¡Consultanos por propiedades similares disponibles en Paysandú!
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {activeDetailVehicle.status === "Reserved" && (
+                  <div className="bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 rounded-xl font-bold text-xs flex items-center gap-2.5">
+                    <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                    <div>
+                      <span className="font-extrabold uppercase tracking-wide block text-xs text-amber-800">
+                        Propiedad Reservada
+                      </span>
+                      <span className="text-xs font-medium text-slate-600">
+                        Este inmueble se encuentra señado o con garantía en trámite.
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Photo Gallery & Thumbnails */}
                 <div>
                   <div className="relative aspect-[16/10] bg-slate-900 rounded-xl overflow-hidden shadow-inner">
                     <img
                       src={modalImages[activeModalImageIndex] || activeDetailVehicle.image}
                       alt={activeDetailVehicle.title}
-                      className="w-full h-full object-cover"
+                      className={`w-full h-full object-cover ${
+                        activeDetailVehicle.status === "Sold" ? "grayscale-[20%]" : ""
+                      }`}
                     />
+
+                    {/* Diagonal Ribbon on Modal Main Image */}
+                    {activeDetailVehicle.status === "Sold" && (
+                      <div className="absolute top-0 right-0 w-36 h-36 overflow-hidden z-20 pointer-events-none">
+                        <div className="absolute top-[28px] -right-[46px] w-[180px] transform rotate-45 bg-red-600 text-white font-black text-xs tracking-widest uppercase text-center py-1.5 shadow-2xl border-y-2 border-white">
+                          {activeDetailVehicle.operation === "Alquiler" ? "ALQUILADO" : "VENDIDO"}
+                        </div>
+                      </div>
+                    )}
+
+                    {activeDetailVehicle.status === "Reserved" && (
+                      <div className="absolute top-0 right-0 w-36 h-36 overflow-hidden z-20 pointer-events-none">
+                        <div className="absolute top-[28px] -right-[46px] w-[180px] transform rotate-45 bg-amber-500 text-slate-950 font-black text-xs tracking-widest uppercase text-center py-1.5 shadow-2xl border-y-2 border-white">
+                          RESERVADO
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {modalImages.length > 1 && (

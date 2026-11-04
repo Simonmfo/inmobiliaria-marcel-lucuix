@@ -13,12 +13,40 @@ import { INITIAL_VEHICLES, DEFAULT_INQUIRIES, UPCOMING_SERVICES } from "./data";
 import { supabase } from "./lib/supabase";
 import { parsePath, buildPath, ViewType } from "./lib/router";
 
+function syncWithInitialImages(items: Vehicle[]): Vehicle[] {
+  return items.map(item => {
+    const localMatch = INITIAL_VEHICLES.find(init => init.id === item.id);
+    if (localMatch) {
+      return {
+        ...item,
+        image: localMatch.image,
+        gallery: localMatch.gallery
+      };
+    }
+    return item;
+  });
+}
+
 export default function App() {
   // Parse initial route from browser URL
   const initialRoute = parsePath(window.location.pathname);
 
-  // Global State Engine
-  const [vehicles, setVehicles] = useState<Vehicle[]>(INITIAL_VEHICLES);
+  // Global State Engine with LocalStorage persistence fallback
+  const [vehicles, setVehicles] = useState<Vehicle[]>(() => {
+    try {
+      const saved = localStorage.getItem("marcellucuix_properties");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return syncWithInitialImages(parsed);
+        }
+      }
+    } catch (e) {
+      console.warn("Could not load properties from localStorage:", e);
+    }
+    return INITIAL_VEHICLES;
+  });
+
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle>(() => {
     if (initialRoute.vehicleId) {
       const found = INITIAL_VEHICLES.find(v => v.id === initialRoute.vehicleId);
@@ -28,8 +56,19 @@ export default function App() {
   });
   const [targetVehicleId, setTargetVehicleId] = useState<string | undefined>(initialRoute.vehicleId);
 
-  const [inquiries, setInquiries] = useState<Inquiry[]>(DEFAULT_INQUIRIES);
-  const [serviceAppointments, setServiceAppointments] = useState<ServiceAppointment[]>(UPCOMING_SERVICES);
+  const [inquiries, setInquiries] = useState<Inquiry[]>(() => {
+    try {
+      const savedInq = localStorage.getItem("marcellucuix_inquiries");
+      if (savedInq) {
+        const parsed = JSON.parse(savedInq);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {}
+    return DEFAULT_INQUIRIES;
+  });
+  const [serviceAppointments] = useState<ServiceAppointment[]>(UPCOMING_SERVICES);
   
   // Navigation Routing States
   const [currentView, setCurrentView] = useState<ViewType>(initialRoute.view);
@@ -78,6 +117,22 @@ export default function App() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, [vehicles]);
 
+  // Save properties to localStorage on every change
+  useEffect(() => {
+    try {
+      localStorage.setItem("marcellucuix_properties", JSON.stringify(vehicles));
+    } catch (e) {
+      console.warn("Could not save properties to localStorage:", e);
+    }
+  }, [vehicles]);
+
+  // Save inquiries to localStorage on every change
+  useEffect(() => {
+    try {
+      localStorage.setItem("marcellucuix_inquiries", JSON.stringify(inquiries));
+    } catch (e) {}
+  }, [inquiries]);
+
   // Sync targetVehicleId when vehicles data changes
   useEffect(() => {
     if (targetVehicleId && vehicles.length > 0) {
@@ -102,12 +157,7 @@ export default function App() {
             (v) => v.propertyType || (v.image && v.image.startsWith("/properties/"))
           );
           if (validProperties.length > 0) {
-            const merged = validProperties.map((dbItem) => {
-              const localMatch = INITIAL_VEHICLES.find((init) => init.id === dbItem.id);
-              return localMatch
-                ? { ...dbItem, image: localMatch.image, gallery: localMatch.gallery }
-                : dbItem;
-            });
+            const merged = syncWithInitialImages(validProperties);
             setVehicles(merged);
             if (targetVehicleId) {
               const match = merged.find((v) => v.id === targetVehicleId);
@@ -149,12 +199,18 @@ export default function App() {
   };
 
   const handleAddVehicle = async (newVehicle: Vehicle) => {
-    setVehicles(prev => [newVehicle, ...prev]);
+    setVehicles(prev => {
+      const updated = [newVehicle, ...prev];
+      try {
+        localStorage.setItem("marcellucuix_properties", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
     setSelectedVehicle(newVehicle);
     try {
       await supabase.from("vehicles").insert([newVehicle]);
     } catch (e) {
-      console.error("Error inserting vehicle into Supabase:", e);
+      console.warn("Supabase insert not available, saved locally:", e);
     }
   };
 
@@ -164,12 +220,15 @@ export default function App() {
       if (selectedVehicle.id === id && updated.length > 0) {
         setSelectedVehicle(updated[0]);
       }
+      try {
+        localStorage.setItem("marcellucuix_properties", JSON.stringify(updated));
+      } catch (e) {}
       return updated;
     });
     try {
       await supabase.from("vehicles").delete().eq("id", id);
     } catch (e) {
-      console.error("Error deleting vehicle from Supabase:", e);
+      console.warn("Supabase delete not available, deleted locally:", e);
     }
   };
 
@@ -180,18 +239,27 @@ export default function App() {
         const nextActive = updated.find(v => v.status !== 'Hidden');
         if (nextActive) setSelectedVehicle(nextActive);
       }
+      try {
+        localStorage.setItem("marcellucuix_properties", JSON.stringify(updated));
+      } catch (e) {}
       return updated;
     });
     try {
       const { error } = await supabase.from("vehicles").update({ status }).eq("id", id);
-      if (error) console.error("Error updating status in Supabase:", error);
+      if (error) console.warn("Supabase update error:", error);
     } catch (e) {
-      console.error("Error updating vehicle status in Supabase:", e);
+      console.warn("Supabase update status not available, updated locally:", e);
     }
   };
 
   const handleAddInquiry = async (newInquiry: Inquiry) => {
-    setInquiries(prev => [newInquiry, ...prev]);
+    setInquiries(prev => {
+      const updated = [newInquiry, ...prev];
+      try {
+        localStorage.setItem("marcellucuix_inquiries", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
     try {
       await supabase.from("inquiries").insert([newInquiry]);
     } catch (e) {
@@ -208,7 +276,7 @@ export default function App() {
         setView={handleSetView} 
         isAuthenticated={isAuthenticated}
         setIsAuthenticated={handleSetAuthenticated}
-        totalVehicles={vehicles.filter(v => v.status !== "Sold").length}
+        totalVehicles={vehicles.filter(v => v.status !== "Sold" && v.status !== "Hidden").length}
       />
 
       {/* Interactive Main Workspace Content Area */}
