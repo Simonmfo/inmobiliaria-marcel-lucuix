@@ -13,11 +13,27 @@ import { INITIAL_VEHICLES, DEFAULT_INQUIRIES, UPCOMING_SERVICES } from "./data";
 import { supabase } from "./lib/supabase";
 import { parsePath, buildPath, ViewType } from "./lib/router";
 
+function toSafeImageUrl(url?: string): string {
+  if (!url) return "";
+  const trimmed = url.trim();
+  if (trimmed.startsWith("/api/instagram?img=")) return trimmed;
+  if (trimmed.startsWith("http") && (trimmed.includes("cdninstagram.com") || trimmed.includes("fbcdn.net"))) {
+    return `/api/instagram?img=${encodeURIComponent(trimmed)}`;
+  }
+  return trimmed;
+}
+
 function normalizeVehicleFromDb(v: any): Vehicle {
   const bedroomsMatch = v.engine?.match(/(\d+)\s*Dorm/i);
   const bathroomsMatch = v.engine?.match(/(\d+)\s*Ba[ñn]/i);
+  const safeImage = toSafeImageUrl(v.image);
+  const safeGallery = Array.isArray(v.gallery) && v.gallery.length > 0
+    ? v.gallery.map((g: string) => toSafeImageUrl(g)).filter(Boolean)
+    : (safeImage ? [safeImage] : []);
   return {
     ...v,
+    image: safeImage,
+    gallery: safeGallery,
     title: v.title || v.model || `${v.brand || 'Propiedad'} en Paysandú`,
     operation: v.operation || (v.transmission === 'Alquiler' ? 'Alquiler' : 'Venta'),
     propertyType: v.propertyType || v.brand || 'Casa',

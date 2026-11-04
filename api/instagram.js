@@ -329,6 +329,45 @@ function fetchWithEmbed(shortcode) {
   });
 }
 
+function toProxyUrl(rawUrl) {
+  const cleaned = cleanUrl(rawUrl);
+  if (!cleaned) return '';
+  if (cleaned.startsWith('/api/instagram?img=')) return cleaned;
+  if (cleaned.startsWith('http') && (cleaned.includes('cdninstagram.com') || cleaned.includes('fbcdn.net'))) {
+    return `/api/instagram?img=${encodeURIComponent(cleaned)}`;
+  }
+  return cleaned;
+}
+
+function fetchImageBuffer(imageUrl, redirects = 3) {
+  return new Promise((resolve, reject) => {
+    https.get(imageUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+      }
+    }, (imgRes) => {
+      if (imgRes.statusCode && imgRes.statusCode >= 300 && imgRes.statusCode < 400 && imgRes.headers.location && redirects > 0) {
+        imgRes.resume();
+        return resolve(fetchImageBuffer(imgRes.headers.location, redirects - 1));
+      }
+      if (imgRes.statusCode !== 200) {
+        imgRes.resume();
+        return reject(new Error(`Upstream image status ${imgRes.statusCode}`));
+      }
+      const chunks = [];
+      imgRes.on('data', chunk => chunks.push(chunk));
+      imgRes.on('end', () => {
+        resolve({
+          buffer: Buffer.concat(chunks),
+          contentType: imgRes.headers['content-type'] || 'image/jpeg'
+        });
+      });
+      imgRes.on('error', reject);
+    }).on('error', reject);
+  });
+}
+
 async function fetchInstagramCarousel(urlOrCode) {
   try {
     const match = urlOrCode.match(/\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/);
@@ -350,7 +389,7 @@ async function fetchInstagramCarousel(urlOrCode) {
       return {
         success: true,
         shortcode,
-        images: botResult.slides,
+        images: botResult.slides.map(toProxyUrl),
         caption: botResult.caption,
         parsed: parseCaption(botResult.caption)
       };
@@ -362,7 +401,7 @@ async function fetchInstagramCarousel(urlOrCode) {
       return {
         success: true,
         shortcode,
-        images: embedResult.slides,
+        images: embedResult.slides.map(toProxyUrl),
         caption: embedResult.caption,
         parsed: parseCaption(embedResult.caption)
       };
@@ -395,7 +434,24 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  const { url } = req.query || {};
+  const { url, img } = req.query || {};
+
+  // Image proxy mode to bypass Instagram CDN CORS / regional / tracking blocks and cache at Vercel Edge
+  if (img && typeof img === 'string') {
+    try {
+      let targetUrl = cleanUrl(img);
+      if (targetUrl.startsWith('/api/instagram?img=')) {
+        targetUrl = decodeURIComponent(targetUrl.slice('/api/instagram?img='.length));
+      }
+      const { buffer, contentType } = await fetchImageBuffer(targetUrl);
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable');
+      return res.status(200).send(buffer);
+    } catch (err) {
+      return res.status(502).json({ success: false, error: err?.message || 'Error al cargar imagen de Instagram' });
+    }
+  }
+
   if (!url || typeof url !== 'string') {
     return res.status(400).json({ success: false, error: 'Falta el parámetro url' });
   }
